@@ -1,0 +1,202 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Zore AI Kılıf Tavsiye Sistemi V6</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #fff, #f0f0f5);
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    header {
+      background-color: #000;
+      padding: 15px;
+      text-align: center;
+    }
+    header img {
+      max-height: 60px;
+    }
+    main {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #222;
+      margin-top: 10px;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+    select, input, button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    button {
+      background-color: #ff0036;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    video {
+      display: block;
+      margin: 10px auto;
+      width: 300px;
+      border-radius: 10px;
+      border: 2px solid #666;
+    }
+    #qrcode, #face-info {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .hint {
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="https://zoreaksesuar.com/Data/EditorFiles/large/zorelogo_1.png" alt="Zore Logo">
+</header>
+
+<main>
+  <h1>Tarzına Göre Kılıf Seç</h1>
+  <video id="video" autoplay muted playsinline></video>
+  <div id="face-info">Yüz analiz ediliyor...</div>
+
+  <label>📱 Telefon Modelini Ara:</label>
+  <input type="text" id="searchInput" onkeyup="filterModels()" placeholder="örn. iPhone 15 Pro Max">
+  <select id="model">
+    <option value="">-- Model Seçiniz --</option>
+    <optgroup label="iPhone">
+      <option value="iphone-16-pro-max">iPhone 16 Pro Max</option>
+      <option value="iphone-15-pro">iPhone 15 Pro</option>
+      <option value="iphone-14">iPhone 14</option>
+      <option value="iphone-11">iPhone 11</option>
+    </optgroup>
+    <optgroup label="Samsung">
+      <option value="samsung-galaxy-s24">Galaxy S24</option>
+      <option value="samsung-galaxy-a54">Galaxy A54</option>
+    </optgroup>
+    <optgroup label="Xiaomi / Redmi">
+      <option value="xiaomi-redmi-note-13">Redmi Note 13</option>
+      <option value="xiaomi-poco-x5">Poco X5</option>
+    </optgroup>
+    <optgroup label="Diğer">
+      <option value="reeder-p13-blue">Reeder P13 Blue</option>
+      <option value="alcatel-1">Alcatel 1</option>
+    </optgroup>
+  </select>
+
+  <label>🎨 Renk</label>
+  <select id="renk">
+    <option value="">-- Seçiniz --</option>
+    <option>Siyah</option>
+    <option>Şeffaf</option>
+    <option>Kırmızı</option>
+    <option>Pembe</option>
+    <option>Mavi</option>
+  </select>
+
+  <label>⚙️ Özellik</label>
+  <select id="ozellik">
+    <option value="">-- Seçiniz --</option>
+    <option>Kartlıklı</option>
+    <option>Yüzüklü</option>
+    <option>Standlı</option>
+    <option>Mıknatıslı</option>
+  </select>
+
+  <label>🧰 Malzeme</label>
+  <select id="malzeme">
+    <option value="">-- Seçiniz --</option>
+    <option>Silikon</option>
+    <option>Deri</option>
+    <option>Şeffaf</option>
+    <option>Kumaş</option>
+  </select>
+
+  <label>🔧 Kullanım</label>
+  <select id="kullanim">
+    <option value="">-- Seçiniz --</option>
+    <option>Günlük</option>
+    <option>İş</option>
+    <option>Spor</option>
+    <option>Outdoor</option>
+  </select>
+
+  <button onclick="showResult()">Kılıfları Göster</button>
+  <div id="qrcode"></div>
+</main>
+
+<script>
+  const video = document.getElementById('video');
+  const faceInfo = document.getElementById('face-info');
+
+  Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights'),
+    faceapi.nets.ageGenderNet.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights')
+  ]).then(startVideo);
+
+  function startVideo() {
+    navigator.mediaDevices.getUserMedia({ video: {} })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => console.error("Kamera hatası:", err));
+  }
+
+  video.addEventListener('play', () => {
+    const canvas = faceapi.createCanvasFromMedia(video);
+    document.body.append(canvas);
+    const displaySize = { width: video.width, height: video.height };
+    faceapi.matchDimensions(canvas, displaySize);
+    setInterval(async () => {
+      const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withAgeAndGender();
+      if (det) {
+        faceInfo.innerText = `Tahmin: ${Math.round(det.age)} yaşında ${det.gender === 'male' ? 'erkek' : 'kadın'}`;
+      }
+    }, 3000);
+  });
+
+  function filterModels() {
+    const input = document.getElementById('searchInput').value.toLowerCase();
+    const options = document.getElementById('model').options;
+    for (let i = 0; i < options.length; i++) {
+      const text = options[i].text.toLowerCase();
+      options[i].style.display = text.includes(input) ? "" : "none";
+    }
+  }
+
+  function showResult() {
+    const model = document.getElementById("model").value;
+    if (!model) { alert("Lütfen bir model seçin"); return; }
+    const url = "https://www.zoreaksesuar.com/" + model;
+    window.open(url, "_blank");
+    QRCode.toCanvas(document.createElement("canvas"), url, function (error, canvas) {
+      if (!error) {
+        const box = document.getElementById("qrcode");
+        box.innerHTML = "<h3>QR Kod ile Paylaş</h3>";
+        box.appendChild(canvas);
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
